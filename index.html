@@ -5,16 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Access Granted: Marqueelz</title>
   <style>
+    :root {
+      --primary: #ff00cc;
+      --secondary: #00ffcc;
+      --bg: #0a0a0a;
+      --text: #e0ffe0;
+      --highlight: #ffff99;
+    }
+    * {
+      box-sizing: border-box;
+    }
     body {
       margin: 0;
       font-family: 'Courier New', monospace;
-      background-color: black;
-      color: #00ff99;
-      overflow: hidden;
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 1rem;
+      overflow-x: hidden;
     }
     .terminal {
-      padding: 2rem;
-      font-size: 1.1rem;
+      font-size: 1rem;
       white-space: pre-wrap;
     }
     .reveal {
@@ -27,38 +37,62 @@
       }
     }
     .banner {
-      font-size: 3rem;
-      color: #ff00cc;
-      text-shadow: 0 0 10px #ff00cc, 0 0 20px #ff00cc;
-      margin: 2rem 0;
+      font-size: 2.5rem;
+      color: var(--primary);
+      text-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary);
+      margin: 1rem 0;
+      text-align: center;
     }
     .quote, .poem {
-      font-size: 1.4rem;
-      color: white;
-      margin: 1rem 0;
-    }
-    #smileBtn {
-      padding: 1rem 2rem;
       font-size: 1.2rem;
-      background: #00ffcc;
-      color: black;
+      color: var(--text);
+      margin: 1rem 0;
+      text-align: center;
+    }
+    #smileBtn, #askAI {
+      display: block;
+      margin: 1rem auto;
+      padding: 0.8rem 1.6rem;
+      font-size: 1rem;
+      background: var(--secondary);
+      color: #000;
       border: none;
       border-radius: 10px;
       cursor: pointer;
-      margin-top: 2rem;
+      transition: 0.3s;
     }
-    #complimentBox {
-      font-size: 1.2rem;
-      color: #ffff99;
+    #smileBtn:hover, #askAI:hover {
+      background: #00ffaa;
+    }
+    #complimentBox, #aiBox {
+      font-size: 1rem;
+      color: var(--highlight);
       margin-top: 1rem;
+      text-align: center;
+    }
+    #aiInput {
+      width: 90%;
+      max-width: 400px;
+      margin: 1rem auto;
+      display: block;
+      padding: 0.7rem;
+      border-radius: 8px;
+      border: none;
+      font-size: 1rem;
+    }
+    @media (min-width: 600px) {
+      .banner {
+        font-size: 3rem;
+      }
     }
   </style>
 </head>
 <body>
   <div id="terminal" class="terminal"></div>
-  
-  <div id="reveal" class="reveal" style="text-align:center; padding: 2rem; background: linear-gradient(to bottom, #000, #222); height: 100vh; overflow-y: auto;">
+
+  <div id="reveal" class="reveal">
     <div class="banner">Hello Marqueelz 💖</div>
+
     <div class="poem">
       Roses are red, skies are blue,<br>
       The world shines brighter just because of you.<br>
@@ -67,12 +101,17 @@
       So lift your heart and feel this line:<br>
       The world is better 'cause you shine ✨
     </div>
+
     <div class="quote">"Stars can't shine without a little darkness."</div>
     <div class="quote">"You’re stronger than you feel, braver than you know."</div>
     <div class="quote">"Even the moon bows when you smile."</div>
 
     <button id="smileBtn">☀️ Click Here to Smile</button>
     <div id="complimentBox"></div>
+
+    <input type="text" id="aiInput" placeholder="Ask anything...">
+    <button id="askAI">💬 Ask Marqueelz AI</button>
+    <div id="aiBox"></div>
   </div>
 
   <script>
@@ -84,7 +123,7 @@
       "Accessing memory node: Marqueelz...",
       "Injecting serotonin...",
       "Status: Sorrow neutralized. Initiating joy...",
-      "\n\u{1F4AC} ACCESS GRANTED TO MARQUEELZ'S HEART FEEL JOY \u{1F497}"
+      "\n💬 ACCESS GRANTED TO MARQUEELZ'S HEART 💖"
     ];
 
     let i = 0;
@@ -113,7 +152,30 @@
       const random = compliments[Math.floor(Math.random() * compliments.length)];
       box.textContent = random;
     });
+
+    document.getElementById("askAI").addEventListener("click", async () => {
+      const prompt = document.getElementById("aiInput").value;
+      const responseBox = document.getElementById("aiBox");
+      responseBox.textContent = "Thinking... 💭";
+
+      try {
+        const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyATXGCgwQ754fAkpOk2TaQRPq3kL01TSNw", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }]
+          })
+        });
+
+        const data = await res.json();
+        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Something went wrong...";
+        responseBox.textContent = reply;
+      } catch (err) {
+        responseBox.textContent = "Error fetching response. 😢";
+      }
+    });
   </script>
-  
 </body>
 </html>
