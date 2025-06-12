@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Access Granted: Marqueelz</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Courier New', monospace;
+      background-color: black;
+      color: #00ff99;
+      overflow: hidden;
+    }
+    .terminal {
+      padding: 2rem;
+      font-size: 1.1rem;
+      white-space: pre-wrap;
+    }
+    .reveal {
+      animation: fadeIn 3s ease forwards;
+      display: none;
+    }
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+      }
+    }
+    .banner {
+      font-size: 3rem;
+      color: #ff00cc;
+      text-shadow: 0 0 10px #ff00cc, 0 0 20px #ff00cc;
+      margin: 2rem 0;
+    }
+    .quote, .poem {
+      font-size: 1.4rem;
+      color: white;
+      margin: 1rem 0;
+    }
+    #smileBtn {
+      padding: 1rem 2rem;
+      font-size: 1.2rem;
+      background: #00ffcc;
+      color: black;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-top: 2rem;
+    }
+    #complimentBox {
+      font-size: 1.2rem;
+      color: #ffff99;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="terminal" class="terminal"></div>
+  
+  <div id="reveal" class="reveal" style="text-align:center; padding: 2rem; background: linear-gradient(to bottom, #000, #222); height: 100vh; overflow-y: auto;">
+    <div class="banner">Hello Marqueelz 💖</div>
+    <div class="poem">
+      Roses are red, skies are blue,<br>
+      The world shines brighter just because of you.<br>
+      Through storms or silence, joy or cries,<br>
+      You're the sparkle behind your own sunrise 🌅<br>
+      So lift your heart and feel this line:<br>
+      The world is better 'cause you shine ✨
+    </div>
+    <div class="quote">"Stars can't shine without a little darkness."</div>
+    <div class="quote">"You’re stronger than you feel, braver than you know."</div>
+    <div class="quote">"Even the moon bows when you smile."</div>
+
+    <button id="smileBtn">☀️ Click Here to Smile</button>
+    <div id="complimentBox"></div>
+  </div>
+
+  <script>
+    const terminal = document.getElementById("terminal");
+    const reveal = document.getElementById("reveal");
+    const loadingLines = [
+      "Establishing secure connection...",
+      "Bypassing emotional firewalls...",
+      "Accessing memory node: Marqueelz...",
+      "Injecting serotonin...",
+      "Status: Sorrow neutralized. Initiating joy...",
+      "\n\u{1F4AC} ACCESS GRANTED TO MARQUEELZ'S HEART FEEL JOY \u{1F497}"
+    ];
+
+    let i = 0;
+    const interval = setInterval(() => {
+      terminal.innerHTML += loadingLines[i] + "\n";
+      i++;
+      if (i === loadingLines.length) {
+        clearInterval(interval);
+        setTimeout(() => {
+          terminal.style.display = "none";
+          reveal.style.display = "block";
+        }, 1000);
+      }
+    }, 1500);
+
+    const compliments = [
+      "You're a walking piece of sunshine ☀️",
+      "Your presence is a hug to the soul 🤗",
+      "You're magic in human form ✨",
+      "You light up rooms without even trying 🌟",
+      "Even rainbows envy your glow 🌈"
+    ];
+
+    document.getElementById("smileBtn").addEventListener("click", () => {
+      const box = document.getElementById("complimentBox");
+      const random = compliments[Math.floor(Math.random() * compliments.length)];
+      box.textContent = random;
+    });
+  </script>
+  
+</body>
+</html>
