@@ -1,16 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../firebase';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { FaTrophy, FaFire, FaGift } from 'react-icons/fa';
 import './DailyStreak.css';
 
-const DailyStreak = ({ onClose }) => {
+const DailyStreak = () => {
   const { user } = useAuth();
   const [streak, setStreak] = useState(0);
-  const [lastLoginDate, setLastLoginDate] = useState(null);
   const [showReward, setShowReward] = useState(false);
   const [voucher, setVoucher] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Move checkForVoucher outside useEffect and memoize it with useCallback
+  const checkForVoucher = useCallback(async (currentStreak) => {
+    try {
+      const voucherRef = doc(db, 'sirtheprogrammer/vouchers');
+      const voucherDoc = await getDoc(voucherRef);
+      
+      if (voucherDoc.exists()) {
+        const vouchers = voucherDoc.data().available || [];
+        if (vouchers.length > 0) {
+          const [newVoucher, ...remainingVouchers] = vouchers;
+          
+          await updateDoc(voucherRef, {
+            available: remainingVouchers,
+            claimed: [...(voucherDoc.data().claimed || []), {
+              voucher: newVoucher,
+              claimedBy: user.uid,
+              claimedAt: new Date(),
+              streak: currentStreak
+            }]
+          });
+          
+          setVoucher(newVoucher);
+          setShowReward(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking voucher:', error);
+    }
+  }, [user?.uid]);
 
   useEffect(() => {
     const loadStreak = async () => {
@@ -30,15 +60,16 @@ const DailyStreak = ({ onClose }) => {
           
           if (diffDays === 1) {
             // Consecutive day
+            const newStreak = data.streak + 1;
             await updateDoc(streakRef, {
-              streak: data.streak + 1,
+              streak: newStreak,
               lastLoginDate: today
             });
-            setStreak(data.streak + 1);
+            setStreak(newStreak);
             
             // Check if reached 7 days
-            if ((data.streak + 1) % 7 === 0) {
-              checkForVoucher(data.streak + 1);
+            if (newStreak % 7 === 0) {
+              checkForVoucher(newStreak);
             }
           } else if (diffDays === 0) {
             // Same day login
@@ -51,7 +82,6 @@ const DailyStreak = ({ onClose }) => {
             });
             setStreak(1);
           }
-          setLastLoginDate(today);
         } else {
           // First time login
           await setDoc(streakRef, {
@@ -59,49 +89,18 @@ const DailyStreak = ({ onClose }) => {
             lastLoginDate: today
           });
           setStreak(1);
-          setLastLoginDate(today);
         }
       } catch (error) {
         console.error('Error loading streak:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
     if (user) {
       loadStreak();
     }
-  }, [user]);
-
-  const checkForVoucher = async (currentStreak) => {
-    try {
-      // Check the secret path for vouchers
-      const voucherRef = doc(db, 'sirtheprogrammer/vouchers');
-      const voucherDoc = await getDoc(voucherRef);
-      
-      if (voucherDoc.exists()) {
-        const vouchers = voucherDoc.data().available || [];
-        if (vouchers.length > 0) {
-          // Get the first available voucher
-          const [newVoucher, ...remainingVouchers] = vouchers;
-          
-          // Update the vouchers list
-          await updateDoc(voucherRef, {
-            available: remainingVouchers,
-            claimed: [...(voucherDoc.data().claimed || []), {
-              voucher: newVoucher,
-              claimedBy: user.uid,
-              claimedAt: new Date(),
-              streak: currentStreak
-            }]
-          });
-          
-          setVoucher(newVoucher);
-          setShowReward(true);
-        }
-      }
-    } catch (error) {
-      console.error('Error checking voucher:', error);
-    }
-  };
+  }, [user, checkForVoucher]);
 
   return (
     <div className="streak-container glass-card">

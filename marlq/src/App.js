@@ -14,25 +14,6 @@ import { uploadImage } from "./services/imageUpload";
 import { db, signOutUser } from "./firebase";
 import { collection, addDoc, getDocs, deleteDoc, doc, serverTimestamp, query, orderBy, onSnapshot } from "firebase/firestore";
 import { useAuth } from "./context/AuthContext";
-import VoucherManager from "./admin/VoucherManager";
-
-const compliments = [
-  "You're a walking piece of sunshine ☀️",
-  "Your presence is a hug to the soul 🤗",
-  "You're magic in human form ✨",
-  "You light up rooms without even trying 🌟",
-  "Even rainbows envy your glow 🌈",
-  "Your smile could light up the darkest night 🌙",
-  "You make the world better just by being in it 🌍",
-  "You're stronger than you know, braver than you think 💪",
-  "Your heart is pure gold, precious and rare 💝",
-  "You're a masterpiece, perfectly crafted ⭐",
-  "Your kindness changes lives every day 🎭",
-  "You inspire others just by being yourself 🦋",
-  "Your spirit is unbreakable, your soul is beautiful 💫",
-  "Every day with you is a gift to the world 🎁",
-  "You deserve all the love and happiness 💖"
-];
 
 export default function App() {
   const { user } = useAuth();
@@ -72,7 +53,7 @@ export default function App() {
     }
 
     return () => unsubscribe();
-  }, [currentPage, user, db]);
+  }, [currentPage, user]);
 
   // Load and subscribe to chat messages
   useEffect(() => {
