@@ -1,0 +1,32 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "marlq/package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "build" }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/static/(.*)",
+      "dest": "/marlq/static/$1"
+    },
+    {
+      "src": "/favicon.ico",
+      "dest": "/marlq/favicon.ico"
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "/marlq/manifest.json"
+    },
+    {
+      "src": "/logo(.*)",
+      "dest": "/marlq/logo$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/marlq/index.html"
+    }
+  ]
+}
