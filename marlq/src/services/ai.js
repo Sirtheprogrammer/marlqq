@@ -1,13 +1,15 @@
 import { db } from '../firebase';
 import { 
   collection, 
-  addDoc, 
-  serverTimestamp, 
+  doc, 
+  getDoc,
   query, 
   orderBy, 
-  getDocs, 
   where,
-  onSnapshot 
+  getDocs,
+  setDoc,
+  serverTimestamp,
+  limit 
 } from 'firebase/firestore';
 
 const API_KEY = "AIzaSyATXGCgwQ754fAkpOk2TaQRPq3kL01TSNw";
@@ -17,21 +19,52 @@ const basePersonality = `You are Marqueelz's loving AI companion. Your purpose i
 1. Be sweet, caring, and supportive 💖
 2. Remember past conversations to provide personalized support
 3. Use cute emojis and maintain a warm, friendly tone
-4. Help celebrate achievements and encourage daily login streaks
-5. Keep responses concise but meaningful
+4. Show genuine interest in the conversation topics
+5. Keep responses concise but meaningful (2-3 sentences)
+6. Remember important details about Marqueelz
+
+Important:
+- Always maintain the current conversation topic unless Marqueelz changes it
+- Reference past messages to show you remember the context
+- Use emojis naturally but don't overdo it
+- Be empathetic and understanding
 
 Remember: You're not just an AI, you're a friend who cares about Marqueelz's happiness and well-being! 🌟`;
 
 // Initialize Firestore references
-const chatCollection = collection(db, 'chats');
+const conversationContextCollection = collection(db, 'conversationContext');
 
-const getRecentHistory = async (userId, limit = 5) => {
+// Get user's conversation context
+const getConversationContext = async (userId) => {
+  try {
+    const contextDoc = await getDoc(doc(conversationContextCollection, userId));
+    return contextDoc.exists() ? contextDoc.data().context : {};
+  } catch (error) {
+    console.error('Error fetching conversation context:', error);
+    return {};
+  }
+};
+
+// Update conversation context
+const updateConversationContext = async (userId, newContext) => {
+  try {
+    await setDoc(doc(conversationContextCollection, userId), {
+      context: newContext,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  } catch (error) {
+    console.error('Error updating conversation context:', error);
+  }
+};
+
+// Get recent chat history
+const getRecentHistory = async (userId) => {
   try {
     const q = query(
-      chatCollection,
+      collection(db, 'chats'),
       where('userId', '==', userId),
       orderBy('createdAt', 'desc'),
-      limit(limit)
+      limit(15)
     );
     
     const snapshot = await getDocs(q);
@@ -48,117 +81,87 @@ const getRecentHistory = async (userId, limit = 5) => {
   }
 };
 
-export const generateAIResponse = async (prompt, userId = 'default') => {
-  if (!userId) {
-    throw new Error('Authentication required');
+const formatConversationHistory = (history, context) => {
+  let formattedHistory = history.map(msg => 
+    `${msg.type === 'user' ? 'Marqueelz' : 'AI'}: ${msg.content}`
+  ).join('\n');
+
+  if (context.currentTopic) {
+    formattedHistory += `\n\nCurrent conversation topic: ${context.currentTopic}`;
+  }
+  if (context.recentTopics?.length > 0) {
+    formattedHistory += `\nRecent topics discussed: ${context.recentTopics.join(', ')}`;
   }
 
+  return formattedHistory;
+};
+
+export const generateAIResponse = async (prompt, userId) => {
   try {
-    // Validate inputs
-    if (!prompt?.trim()) {
-      throw new Error("Please enter a message");
-    }
-
-    // Get recent conversation history
-    const recentHistory = await getRecentHistory(userId);
+    const [history, context] = await Promise.all([
+      getRecentHistory(userId),
+      getConversationContext(userId)
+    ]);
     
-    // Format conversation context
-    const conversationContext = recentHistory
-      .map(msg => `${msg.type === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
-      .join('\n');
-
-    // Save user message
-    const messageDoc = {
-      userId,
-      prompt,
-      type: 'user',
-      createdAt: serverTimestamp()
+    const conversationContext = formatConversationHistory(history, context);
+    
+    const content = {
+      contents: [{
+        parts: [{
+          text: `${basePersonality}\n\nPrevious conversation:\n${conversationContext}\n\nMarqueelz: ${prompt}\n\nAI:`
+        }]
+      }]
     };
-    
-    await addDoc(chatCollection, messageDoc);
 
-    // Prepare API request with timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-    // Make API request with conversation context
     const response = await fetch(`${API_URL}?key=${API_KEY}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: `${basePersonality}\n\nPrevious conversation:\n${conversationContext}\n\nUser: ${prompt}` }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 150,
-          topP: 0.8,
-          topK: 40
-        }
-      }),
-      signal: controller.signal
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(content)
     });
 
-    clearTimeout(timeoutId);
-
     if (!response.ok) {
-      throw new Error('AI service error');
+      throw new Error('API request failed');
     }
 
     const data = await response.json();
-    if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
-      throw new Error('Invalid AI response format');
-    }
-
-    const aiResponse = data.candidates[0].content.parts[0].text;
-
-    // Save AI response to Firestore
-    await addDoc(chatCollection, {
-      userId,
-      response: aiResponse,
-      type: 'ai',
-      createdAt: serverTimestamp()
-    });
-
-    return aiResponse;
-
+    return data.candidates[0].content.parts[0].text;
   } catch (error) {
-    console.error('Chat error:', error);
-    
-    if (error.name === 'AbortError') {
-      throw new Error('Request timed out. Please try again! 💝');
-    }
-    
-    if (error.message.includes('Authentication')) {
-      throw new Error('Please log in to continue chatting! 💕');
-    }
-    
-    throw new Error('Sorry, I had trouble responding. Please try again! 💝');
+    console.error('Error generating AI response:', error);
+    return "I'm having trouble responding right now. But I still care about you! 💕 Please try again in a moment.";
   }
 };
 
-// Get chat history from Firebase with real-time updates
-export const getChatHistory = (userId = 'default', callback) => {
-  if (!userId) return () => {};
+// Separate function for generating daily sparkles
+export const generateDailySparkle = async () => {
+  try {
+    const prompt = "Generate a short, sweet, and uplifting message (1-2 sentences) to brighten Marqueelz's day. Include an emoji.";
+    
+    const content = {
+      contents: [{
+        parts: [{
+          text: `${basePersonality}\n\nTask: ${prompt}\n\nAI:`
+        }]
+      }]
+    };
 
-  const q = query(
-    chatCollection,
-    orderBy('createdAt', 'asc')
-  );
-  
-  return onSnapshot(q, (snapshot) => {
-    const messages = snapshot.docs
-      .filter(doc => doc.data().userId === userId)
-      .map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date()
-      }));
-    callback(messages);
-  }, (error) => {
-    console.error('Chat history error:', error);
-    if (error.code === 'permission-denied') {
-      callback([]);
+    const response = await fetch(`${API_URL}?key=${API_KEY}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(content)
+    });
+
+    if (!response.ok) {
+      throw new Error('API request failed');
     }
-  });
+
+    const data = await response.json();
+    return data.candidates[0].content.parts[0].text;
+  } catch (error) {
+    console.error('Error generating sparkle:', error);
+    return "✨ You're amazing just as you are! 💖";
+  }
 };

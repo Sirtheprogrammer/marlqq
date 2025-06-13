@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaHeart, FaImages, FaRobot, FaSignOutAlt, FaUserCog, FaInfoCircle } from "react-icons/fa";
+import { FaHeart, FaImages, FaRobot, FaSignOutAlt, FaUserCog, FaBars } from "react-icons/fa";
 import { db } from './firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import "./menu.css";
@@ -33,7 +33,7 @@ const menuItems = [
 
 export default function Menu({ currentPage, setCurrentPage, onSignOut, user }) {
   const [profile, setProfile] = useState(null);
-  const [showTooltip, setShowTooltip] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -54,57 +54,66 @@ export default function Menu({ currentPage, setCurrentPage, onSignOut, user }) {
   }, [user]);
 
   return (
-    <nav className="glass-card sidebar-menu d-flex flex-md-column flex-row align-items-center justify-content-center p-2 mb-4">
-      <div className="menu-items">
-        {menuItems.map((item) => (
-          <div 
-            key={item.id}
-            className="menu-item-wrapper"
-            onMouseEnter={() => setShowTooltip(item.id)}
-            onMouseLeave={() => setShowTooltip(null)}
-          >
-            <button
-              className={`menu-btn ${currentPage === item.id ? "active" : ""}`}
-              onClick={() => setCurrentPage(item.id)}
-              aria-label={item.title}
-            >
-              <item.icon size={24} />
-              <span className="menu-label">{item.title}</span>
-            </button>
-            {showTooltip === item.id && (
-              <div className="menu-tooltip">
-                <FaInfoCircle className="tooltip-icon" />
-                {item.description}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+    <div className="dropdown-menu-container">
+      <button className="menu-toggle" onClick={() => setShowMenu(!showMenu)}>
+        <FaBars size={28} />
+      </button>
 
-      <div className="user-profile">
-        <div className="user-info">
-          <div
-            className="user-avatar"
-            style={{
-              backgroundColor: '#ff69b4',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '1.2rem',
-              fontWeight: 'bold',
-            }}
-          >
-            {profile?.displayName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase()}
+      {showMenu && (
+        <div className="menu-dropdown glass-card">
+          <div className="user-profile">
+            <div className="user-info">
+              <div
+                className="user-avatar"
+                style={{
+                  backgroundColor: '#ff69b4',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '1.2rem',
+                  fontWeight: 'bold',
+                }}
+              >
+                {profile?.displayName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase()}
+              </div>
+              <span className="user-name">
+                {profile?.displayName || user?.email}
+              </span>
+            </div>
           </div>
-          <span className="user-name">
-            {profile?.displayName || user?.email?.split('@')[0]}
-          </span>
+
+          <div className="menu-items-dropdown">
+            {menuItems.map((item) => (
+              <button
+                key={item.id}
+                className={`menu-item ${currentPage === item.id ? "active" : ""}`}
+                onClick={() => {
+                  setCurrentPage(item.id);
+                  setShowMenu(false);
+                }}
+              >
+                <item.icon size={28} />
+                <div className="menu-content">
+                  <span className="menu-label">{item.title}</span>
+                  <div className="menu-description">{item.description}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => {
+              setShowMenu(false);
+              onSignOut();
+            }}
+            className="sign-out-button"
+          >
+            <FaSignOutAlt size={20} />
+            <span>Sign Out</span>
+          </button>
         </div>
-        <button className="sign-out-button" onClick={onSignOut}>
-          <FaSignOutAlt /> <span className="sign-out-text">Sign Out</span>
-        </button>
-      </div>
-    </nav>
+      )}
+    </div>
   );
 }

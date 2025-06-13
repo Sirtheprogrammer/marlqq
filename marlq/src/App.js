@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./love.css";
 import "./menu.css";
@@ -9,15 +9,27 @@ import ChatHistory from "./components/ChatHistory";
 import EmailAuth from "./components/EmailAuth";
 import Profile from "./components/Profile";
 import DailyStreak from "./components/DailyStreak";
-import { generateAIResponse } from "./services/ai";
+import VoucherManager from "./admin/VoucherManager";
+import { generateAIResponse, generateDailySparkle } from "./services/ai";
 import { uploadImage } from "./services/imageUpload";
 import { db, signOutUser } from "./firebase";
-import { collection, addDoc, getDocs, deleteDoc, doc, serverTimestamp, query, orderBy, onSnapshot } from "firebase/firestore";
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  deleteDoc, 
+  doc, 
+  serverTimestamp, 
+  query, 
+  orderBy, 
+  where,
+  onSnapshot 
+} from "firebase/firestore";
 import { useAuth } from "./context/AuthContext";
 
 export default function App() {
   const { user } = useAuth();
-  const [compliment, setCompliment] = useState("");
+  const [sparkle, setSparkle] = useState("");
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [gallery, setGallery] = useState([]);
@@ -26,6 +38,96 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState("home");
   const [isTyping, setIsTyping] = useState(false);
   const [loadingSparkle, setLoadingSparkle] = useState(false);
+
+  // Load chat messages from Firestore
+  useEffect(() => {
+    let unsubscribe = () => {};
+
+    if (user) {
+      const chatQuery = query(
+        collection(db, 'chats'),
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'asc')
+      );
+
+      unsubscribe = onSnapshot(chatQuery, (snapshot) => {
+        const newMessages = [];
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          const messageData = {
+            id: doc.id,
+            type: data.type,
+            content: data.type === 'user' ? data.prompt : data.response,
+            createdAt: data.createdAt?.toDate() || new Date()
+          };
+          if (messageData.content) {
+            newMessages.push(messageData);
+          }
+        });
+        setMessages(newMessages);
+      }, (error) => {
+        console.error("Error loading messages:", error);
+      });
+    }
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Memoize generateSparkle to prevent unnecessary re-renders
+  const generateSparkle = useCallback(async () => {
+    if (loadingSparkle || !user) return;
+    setLoadingSparkle(true);
+    try {
+      const newSparkle = await generateDailySparkle(user.uid);
+      setSparkle(newSparkle);
+    } catch (error) {
+      console.error("Error generating sparkle:", error);
+    } finally {
+      setLoadingSparkle(false);
+    }
+  }, [user, loadingSparkle]);
+
+  // Generate sparkle on first load
+  useEffect(() => {
+    if (user && !sparkle) {
+      generateSparkle();
+    }
+  }, [user, sparkle, generateSparkle]);
+
+  // Handle chat message submission
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!inputValue.trim() || isTyping || !user) return;
+
+    const userInput = inputValue.trim();
+    setInputValue("");
+    setIsTyping(true);
+
+    try {
+      // Add user message to Firestore first
+      await addDoc(collection(db, 'chats'), {
+        userId: user.uid,
+        type: 'user',
+        prompt: userInput,
+        createdAt: serverTimestamp()
+      });
+
+      // Generate AI response
+      const aiResponse = await generateAIResponse(userInput, user.uid);
+
+      // Add AI response to Firestore
+      await addDoc(collection(db, 'chats'), {
+        userId: user.uid,
+        type: 'ai',
+        response: aiResponse,
+        createdAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error("Error in chat:", error);
+    } finally {
+      setIsTyping(false);
+    }
+  };
 
   // Load gallery from Firestore
   useEffect(() => {
@@ -128,35 +230,6 @@ export default function App() {
     }
   };
 
-  const handleSendMessage = async (message) => {
-    if (!user || !message.trim()) return;
-    
-    setIsTyping(true);
-    try {
-      await generateAIResponse(message, user.uid);
-    } catch (error) {
-      console.error("Error sending message:", error);
-    } finally {
-      setIsTyping(false);
-    }
-  };
-
-  const handleCompliment = async () => {
-    setLoadingSparkle(true);
-    try {
-      const response = await generateAIResponse(
-        "Generate a short, loving, personal compliment or words of encouragement (max 2 sentences). Be creative and heartfelt. Use emojis.", 
-        user.uid
-      );
-      setCompliment(response);
-    } catch (error) {
-      setCompliment("You're absolutely amazing! ✨");
-      console.error('Error generating sparkle:', error);
-    } finally {
-      setLoadingSparkle(false);
-    }
-  };
-
   // Add URL path handling
   useEffect(() => {
     const path = window.location.pathname.substring(1); // Remove leading slash
@@ -167,7 +240,7 @@ export default function App() {
 
   // Add this function to check if user is admin
   const isAdmin = () => {
-    return user?.uid === "r5d8OhdgoLfJoIx43gsBpuCcty82"; // Your admin UID
+    return user?.uid === "r5d8OhdgoLfJoIx43gsBpuCty82"; // Your admin UID
   };
 
   // Return login component if not authenticated
@@ -178,7 +251,11 @@ export default function App() {
   // Check for admin page first
   if (currentPage === 'sirtheprogrammer') {
     if (isAdmin()) {
-      return <VoucherManager />;
+      return (
+        <div className="admin-page">
+          <VoucherManager />
+        </div>
+      );
     } else {
       // Redirect non-admins to home
       setCurrentPage('home');
@@ -257,7 +334,7 @@ export default function App() {
                     border: "none",
                     fontSize: "1.2rem"
                   }} 
-                  onClick={handleCompliment}
+                  onClick={generateSparkle}
                   disabled={loadingSparkle}
                 >
                   {loadingSparkle ? "✨ Creating Magic..." : "✨ Click For Your Daily Sparkle ✨"}
@@ -268,11 +345,11 @@ export default function App() {
                   minHeight: 32,
                   fontSize: "1.2rem",
                   padding: "10px",
-                  background: compliment ? "rgba(255,255,255,0.1)" : "transparent",
+                  background: sparkle ? "rgba(255,255,255,0.1)" : "transparent",
                   borderRadius: "16px",
                   transition: "all 0.3s ease"
                 }}>
-                  {compliment}
+                  {sparkle}
                 </div>
               </div>
             </div>
@@ -308,13 +385,15 @@ export default function App() {
         )}
 
         {currentPage === "ai" && (
-          <ChatHistory 
-            messages={messages}
-            onSendMessage={handleSendMessage}
-            inputValue={inputValue}
-            setInputValue={setInputValue}
-            isTyping={isTyping}
-          />
+          <div className="container">
+            <ChatHistory
+              messages={messages}
+              inputValue={inputValue}
+              setInputValue={setInputValue}
+              onSubmit={handleSendMessage}
+              isTyping={isTyping}
+            />
+          </div>
         )}
 
         {currentPage === "profile" && <Profile />}  {/* Add Profile rendering */}

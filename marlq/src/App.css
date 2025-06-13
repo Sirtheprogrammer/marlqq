@@ -1,5 +1,6 @@
 .App {
   text-align: center;
+  margin-top: 70px;
 }
 
 .App-logo {
@@ -34,5 +35,81 @@
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+.admin-page {
+  min-height: 100vh;
+  width: 100%;
+  padding: 20px;
+  background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.main-content {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sparkle-container {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.sparkle-container h2 {
+  color: #ff69b4;
+  margin-bottom: 1rem;
+}
+
+.sparkle-container p {
+  color: #fff;
+  font-size: 1.1rem;
+  margin: 1rem 0;
+  line-height: 1.5;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+}
+
+@media (max-width: 768px) {
+  .App {
+    margin-top: 60px;
+  }
+
+  .container {
+    padding: 0.5rem;
+    gap: 1rem;
+  }
+
+  .sparkle-container {
+    padding: 1rem;
+    margin: 0.5rem;
+    border-radius: 15px;
   }
 }

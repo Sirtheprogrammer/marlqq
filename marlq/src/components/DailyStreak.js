@@ -10,9 +10,9 @@ const DailyStreak = () => {
   const [streak, setStreak] = useState(0);
   const [showReward, setShowReward] = useState(false);
   const [voucher, setVoucher] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [daysUntilReward, setDaysUntilReward] = useState(7);
 
-  // Move checkForVoucher outside useEffect and memoize it with useCallback
   const checkForVoucher = useCallback(async (currentStreak) => {
     try {
       const voucherRef = doc(db, 'sirtheprogrammer/vouchers');
@@ -58,14 +58,14 @@ const DailyStreak = () => {
           
           const diffDays = Math.floor((today - lastLogin) / (1000 * 60 * 60 * 24));
           
+          let newStreak = data.streak;
           if (diffDays === 1) {
             // Consecutive day
-            const newStreak = data.streak + 1;
+            newStreak = data.streak + 1;
             await updateDoc(streakRef, {
               streak: newStreak,
               lastLoginDate: today
             });
-            setStreak(newStreak);
             
             // Check if reached 7 days
             if (newStreak % 7 === 0) {
@@ -73,15 +73,17 @@ const DailyStreak = () => {
             }
           } else if (diffDays === 0) {
             // Same day login
-            setStreak(data.streak);
+            newStreak = data.streak;
           } else {
             // Streak broken
+            newStreak = 1;
             await updateDoc(streakRef, {
               streak: 1,
               lastLoginDate: today
             });
-            setStreak(1);
           }
+          setStreak(newStreak);
+          setDaysUntilReward(7 - (newStreak % 7));
         } else {
           // First time login
           await setDoc(streakRef, {
@@ -89,11 +91,12 @@ const DailyStreak = () => {
             lastLoginDate: today
           });
           setStreak(1);
+          setDaysUntilReward(6);
         }
       } catch (error) {
         console.error('Error loading streak:', error);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
@@ -102,47 +105,56 @@ const DailyStreak = () => {
     }
   }, [user, checkForVoucher]);
 
+  if (isLoading) return null;
+
   return (
-    <div className="streak-container glass-card">
-      <h3 className="streak-title">
-        <FaFire className="streak-icon" /> Daily Streak
-      </h3>
-      
-      <div className="streak-count">
-        <span className="streak-number">{streak}</span>
-        <span className="streak-text">days</span>
+    <>
+      <div className="streak-container glass-card">
+        <div className="streak-title">
+          <FaFire className="streak-icon" />
+          Daily Streak
+        </div>
+        <div className="streak-count">
+          <span className="streak-number">{streak}</span>
+          <span className="streak-text">days</span>
+        </div>
+        <div className="streak-progress">
+          <div className="progress-bar">
+            {[...Array(7)].map((_, i) => (
+              <div
+                key={i}
+                className={`progress-day ${i < (streak % 7) ? 'active' : ''}`}
+                title={`Day ${i + 1}`}
+              />
+            ))}
+          </div>
+          <div className="progress-label">
+            {daysUntilReward} {daysUntilReward === 1 ? 'day' : 'days'} until reward
+          </div>
+        </div>
       </div>
 
-      <div className="streak-progress">
-        <div className="progress-bar">
-          {[...Array(7)].map((_, i) => (
-            <div 
-              key={i} 
-              className={`progress-day ${i < (streak % 7) ? 'active' : ''}`}
-            />
-          ))}
-        </div>
-        <div className="progress-label">
-          {7 - (streak % 7)} days until next reward
-        </div>
-      </div>
-
-      {showReward && voucher && (
+      {showReward && (
         <div className="reward-popup">
           <FaTrophy className="trophy-icon" />
-          <h4>Congratulations! 🎉</h4>
+          <h2>Congratulations!</h2>
           <p>You've maintained a {streak} day streak!</p>
-          <div className="voucher-container">
-            <FaGift className="gift-icon" />
-            <p>Here's your Halottel voucher:</p>
-            <div className="voucher-code">{voucher}</div>
-          </div>
-          <button className="close-button" onClick={() => setShowReward(false)}>
-            Claim Reward
+          {voucher && (
+            <div className="voucher-container">
+              <FaGift className="gift-icon" />
+              <p>You've earned a special voucher:</p>
+              <h3>{voucher}</h3>
+            </div>
+          )}
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowReward(false)}
+          >
+            Close
           </button>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
